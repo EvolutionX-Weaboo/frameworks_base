@@ -63,10 +63,6 @@ import com.android.systemui.plugins.qs.QSTileView;
 import com.android.systemui.qs.QSHost.Callback;
 import com.android.systemui.qs.customize.QSCustomizer;
 import com.android.systemui.qs.external.CustomTile;
-import com.android.systemui.settings.BrightnessController;
-import com.android.systemui.settings.ToggleSliderView;
-import com.android.systemui.statusbar.policy.BrightnessMirrorController;
-import com.android.systemui.statusbar.policy.BrightnessMirrorController.BrightnessMirrorListener;
 import com.android.systemui.tuner.TunerService;
 import com.android.systemui.tuner.TunerService.Tunable;
 
@@ -79,10 +75,9 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 /** View that represents the quick settings tile panel (when expanded/pulled down). **/
-public class QSPanel extends LinearLayout implements Tunable, Callback, BrightnessMirrorListener,
+public class QSPanel extends LinearLayout implements Tunable, Callback,
         Dumpable {
 
-    public static final String QS_SHOW_BRIGHTNESS = "qs_show_brightness";
     public static final String QS_SHOW_HEADER = "qs_show_header";
     public static final String QS_BRIGHTNESS_POSITION_BOTTOM = "qs_brightness_position_bottom";
 
@@ -90,7 +85,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
 
     protected final Context mContext;
     protected final ArrayList<TileRecord> mRecords = new ArrayList<>();
-    protected final View mBrightnessView;
     protected final ImageView mBrightnessIcon;
     private final H mHandler = new H();
     private final MetricsLogger mMetricsLogger = Dependency.get(MetricsLogger.class);
@@ -100,7 +94,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
     protected boolean mListening;
 
     private QSDetail.Callback mCallback;
-    private BrightnessController mBrightnessController;
     private DumpController mDumpController;
     protected QSTileHost mHost;
 
@@ -113,7 +106,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
     private QSCustomizer mCustomizePanel;
     private Record mDetailRecord;
 
-    private BrightnessMirrorController mBrightnessMirrorController;
     private View mDivider;
 
     // omni
@@ -137,12 +129,9 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
 
         setOrientation(VERTICAL);
 
-        mBrightnessView = LayoutInflater.from(mContext).inflate(
-            R.layout.quick_settings_brightness_dialog, this, false);
         mBrightnessPlaceholder = LayoutInflater.from(mContext).inflate(
             R.layout.quick_settings_brightness_placeholder, this, false);
         addView(mBrightnessPlaceholder);
-        addView(mBrightnessView);
 
         mBrightnessIcon = (ImageView) findViewById(R.id.brightness_icon);
 
@@ -161,9 +150,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
 
         updateResources();
 
-        mBrightnessController = new BrightnessController(getContext(),
-                mBrightnessIcon,
-                findViewById(R.id.brightness_slider));
         mDumpController = dumpController;
     }
 
@@ -207,13 +193,10 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         final TunerService tunerService = Dependency.get(TunerService.class);
-        tunerService.addTunable(this, QS_SHOW_BRIGHTNESS);
         tunerService.addTunable(this, QS_BRIGHTNESS_POSITION_BOTTOM);
+
         if (mHost != null) {
             setTiles(mHost.getTiles());
-        }
-        if (mBrightnessMirrorController != null) {
-            mBrightnessMirrorController.addCallback(this);
         }
         if (mDumpController != null) mDumpController.addListener(this);
     }
@@ -227,9 +210,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
         for (TileRecord record : mRecords) {
             record.tile.removeCallbacks();
         }
-        if (mBrightnessMirrorController != null) {
-            mBrightnessMirrorController.removeCallback(this);
-        }
         if (mDumpController != null) mDumpController.removeListener(this);
         super.onDetachedFromWindow();
     }
@@ -241,9 +221,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
 
     @Override
     public void onTuningChanged(String key, String newValue) {
-        if (QS_SHOW_BRIGHTNESS.equals(key)) {
-            updateViewVisibilityForTuningValue(newValue);
-        }
         if (QS_BRIGHTNESS_POSITION_BOTTOM.equals(key)) {
             if (newValue == null || Integer.parseInt(newValue) == 0) {
                 removeView(mBrightnessView);
@@ -259,6 +236,7 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
                 mBrightnessBottom = true;
             }
         }
+        // Do nothing
     }
 
     private int getBrightnessViewPositionBottom() {
@@ -316,30 +294,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
             mBrightnessIcon.setVisibility(View.GONE);
         }
         updateResources();
-    }
-
-    public void setBrightnessMirror(BrightnessMirrorController c) {
-        if (mBrightnessMirrorController != null) {
-            mBrightnessMirrorController.removeCallback(this);
-        }
-        mBrightnessMirrorController = c;
-        if (mBrightnessMirrorController != null) {
-            mBrightnessMirrorController.addCallback(this);
-        }
-        updateBrightnessMirror();
-    }
-
-    @Override
-    public void onBrightnessMirrorReinflated(View brightnessMirror) {
-        updateBrightnessMirror();
-    }
-
-    View getBrightnessView() {
-        return mBrightnessView;
-    }
-
-    View getBrightnessPlaceholder() {
-        return mBrightnessPlaceholder;
     }
 
     public void setCallback(QSDetail.Callback callback) {
@@ -405,18 +359,6 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
         super.onConfigurationChanged(newConfig);
         mFooter.onConfigurationChanged();
         updateResources();
-
-        updateBrightnessMirror();
-    }
-
-    public void updateBrightnessMirror() {
-        if (mBrightnessMirrorController != null) {
-            ToggleSliderView brightnessSlider = findViewById(R.id.brightness_slider);
-            ToggleSliderView mirrorSlider = mBrightnessMirrorController.getMirror()
-                    .findViewById(R.id.brightness_slider);
-            brightnessSlider.setMirror(mirrorSlider);
-            brightnessSlider.setMirrorController(mBrightnessMirrorController);
-        }
     }
 
     public void onCollapse() {
@@ -463,22 +405,10 @@ public class QSPanel extends LinearLayout implements Tunable, Callback, Brightne
     public void setListening(boolean listening, boolean expanded) {
         setListening(listening && expanded);
         getFooter().setListening(listening);
-        // Set the listening as soon as the QS fragment starts listening regardless of the expansion,
-        // so it will update the current brightness before the slider is visible.
-        setBrightnessListening(listening);
-    }
-
-    public void setBrightnessListening(boolean listening) {
-        if (listening) {
-            mBrightnessController.registerCallbacks();
-        } else {
-            mBrightnessController.unregisterCallbacks();
-        }
         setBrightnessIcon();
     }
 
     public void refreshAllTiles() {
-        mBrightnessController.checkRestrictionAndSetEnabled();
         for (TileRecord r : mRecords) {
             r.tile.refreshState();
         }
