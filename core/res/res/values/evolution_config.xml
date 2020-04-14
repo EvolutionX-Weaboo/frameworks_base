@@ -428,4 +428,7 @@
     <string name="config_oemFastChargerStatusPath" translatable="false"></string>
     <!-- Expected value from fast charging status file  -->
     <string name="config_oemFastChargerStatusValue" translatable="false"></string>
+
+    <!-- Enable face auth when swiping security view -->
+    <bool name="config_faceAuthOnSecurityView">false</bool>
 </resources>
