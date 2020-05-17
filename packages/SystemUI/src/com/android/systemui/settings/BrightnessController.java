@@ -42,7 +42,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.ImageButton;
 
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
@@ -73,7 +72,6 @@ public class BrightnessController implements ToggleSlider.Listener {
 
     private final Context mContext;
     private final ImageView mIcon;
-    private final ImageButton mIcon;
     private final ToggleSlider mControl;
     private final boolean mAutomaticAvailable;
     private final DisplayManager mDisplayManager;
@@ -198,7 +196,6 @@ public class BrightnessController implements ToggleSlider.Listener {
                         UserHandle.USER_CURRENT);
                 mHandler.obtainMessage(MSG_UPDATE_ICON, mAutomatic ? 1 : 0).sendToTarget();
                 mAutomatic = automatic != Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL;
-                mHandler.obtainMessage(MSG_UPDATE_ICON, mAutomatic ? 1 : 0).sendToTarget();
             } else {
                 mHandler.obtainMessage(MSG_SET_CHECKED, 0).sendToTarget();
                 mHandler.obtainMessage(MSG_UPDATE_ICON, 0 /* automatic */).sendToTarget();
@@ -243,8 +240,7 @@ public class BrightnessController implements ToggleSlider.Listener {
             try {
                 switch (msg.what) {
                     case MSG_UPDATE_ICON:
-                        //updateIcon(msg.arg1 != 0);
-                        updateIcon();
+                        updateIcon(msg.arg1 != 0);
                         break;
                     case MSG_UPDATE_SLIDER:
                         updateSlider(msg.arg1, msg.arg2 != 0);
@@ -270,7 +266,7 @@ public class BrightnessController implements ToggleSlider.Listener {
         }
     };
 
-    public BrightnessController(Context context, ImageButton icon, ToggleSlider control) {
+    public BrightnessController(Context context, ImageView icon, ToggleSlider control) {
         mIcon = icon;
         mContext = context;
         mControl = control;
@@ -367,7 +363,7 @@ public class BrightnessController implements ToggleSlider.Listener {
     @Override
     public void onChanged(ToggleSlider toggleSlider, boolean tracking, boolean automatic,
             int value, boolean stopTracking) {
-        updateIcon();
+        updateIcon(mAutomatic);
         if (mExternalChange) return;
 
         if (mSliderAnimator != null) {
@@ -437,13 +433,7 @@ public class BrightnessController implements ToggleSlider.Listener {
     }
 
 
-    //private void updateIcon(boolean automatic) {
-
-    protected boolean isBrightnessAuto() {
-        return mAutomatic;
-    }
-
-    private void updateIcon() {
+    private void updateIcon(boolean automatic) {
         if (mIcon != null) {
             mIcon.setImageResource(mAutomatic ?
                     com.android.systemui.R.drawable.ic_qs_brightness_auto_on :
