@@ -1940,14 +1940,6 @@ public class VolumeDialogImpl implements VolumeDialog,
         }
     }
 
-    public boolean onLongClick(View v) {
-        if (v == mSettingsIcon) {
-            startSoundActivity();
-            mController.vibrate(VibrationEffect.get(VibrationEffect.EFFECT_HEAVY_CLICK));
-        }
-        return false;
-    }
-
     private void startSoundActivity() {
         dismissH(Events.DISMISS_REASON_TOUCH_OUTSIDE);
         Intent nIntent = new Intent(Intent.ACTION_MAIN);
